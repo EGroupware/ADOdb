@@ -1642,32 +1642,31 @@ if (!defined('_ADODB_LAYER')) {
 	}
 
 	function GetAssoc($sql, $inputarr=false,$force_array = false, $first2cols = false) {
-
 		global $ADODB_FETCH_MODE;
+
 		$save  = $ADODB_FETCH_MODE;
-		$savem = $this->SetFetchMode(FALSE);
-		if ($save == ADODB_FETCH_BOTH || !$save || $savem == ADODB_FETCH_BOTH)
-		{
-			/*
-		    * Method does not work in ADODB_FETCH_BOTH mode
-			*/
-			$ADODB_FETCH_MODE = ADODB_FETCH_NUM;
-			$this->SetFetchMode(ADODB_FETCH_NUM);
+		$savem = $this->SetFetchMode(NULL);
+
+		// Method does not work in ADODB_FETCH_BOTH mode
+		if ($save == ADODB_FETCH_ASSOC || $savem == ADODB_FETCH_ASSOC) {
+			$switchMode = ADODB_FETCH_ASSOC;
+		} else {
+			$switchMode = ADODB_FETCH_NUM;
 		}
 
+		$ADODB_FETCH_MODE = $switchMode;
+		$this->SetFetchMode($switchMode);
 
 		$rs = $this->Execute($sql, $inputarr);
+
+		// Revert modes back to original
+		$this->SetFetchMode($savem);
+		$ADODB_FETCH_MODE = $save;
 		if (!$rs) {
+			// Execution failure
 			return false;
 		}
-
-		if ($savem)
-			$this->SetFetchMode($savem);
-
-		$ADODB_FETCH_MODE = $save;
-
-		$arr = $rs->GetAssoc($force_array,$first2cols);
-		return $arr;
+		return $rs->GetAssoc($force_array, $first2cols, $switchMode);
 	}
 
 	function CacheGetAssoc($secs2cache, $sql=false, $inputarr=false,$force_array = false, $first2cols = false) {
@@ -3509,123 +3508,179 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 	}
 
 	/**
-	 * return whole recordset as a 2-dimensional associative array if there are more than 2 columns.
-	 * The first column is treated as the key and is not included in the array.
-	 * If there is only 2 columns, it will return a 1 dimensional array of key-value pairs unless
-	 * $force_array == true.
+	 * return whole recordset as a 2-dimensional associative array if
+	 * there are more than 2 columns. The first column is treated as the 
+	 * key and is not included in the array. If there is only 2 columns, 
+	 * it will return a 1 dimensional array of key-value pairs unless 
+	 * $force_array == true. This recordset method is currently part of
+	 * the API, but may not be in later versions of ADOdb. By preference, use
+     * ADOconnnection::getAssoc()	 
+	 * 
 	 *
-	 * @param [force_array] has only meaning if we have 2 data columns. If false, a 1 dimensional
-	 * array is returned, otherwise a 2 dimensional array is returned. If this sounds confusing,
-	 * read the source.
+	 * @param bool	$force_array	(optional) Has only meaning if we have 2 data 
+	 *								columns. If false, a 1 dimensional
+	 * 								array is returned, otherwise a 2 dimensional 
+	 *								array is returned. If this sounds confusing,
+	 * 								read the source.
 	 *
-	 * @param [first2cols] means if there are more than 2 cols, ignore the remaining cols and
-	 * instead of returning array[col0] => array(remaining cols), return array[col0] => col1
+	 * @param bool	$first2cols 	(optional) Means if there are more than 
+	 *								2 cols, ignore the remaining cols and
+	 * 								instead of returning 
+	 *								array[col0] => array(remaining cols), 
+	 *								return array[col0] => col1
 	 *
-	 * @return an associative array indexed by the first column of the array,
-	 * or false if the  data has less than 2 cols.
+	 * @param int	$fetchMode		(optional) The fetch mode, if available
+	 *
+	 * @return mixed
+	 *
 	 */
-	function GetAssoc($force_array = false, $first2cols = false) {
-		global $ADODB_EXTENSION;
+	function getAssoc($force_array = false, $first2cols = false, $fetchMode=-1)
+	{
 
-		$cols = $this->_numOfFields;
-		if ($cols < 2) {
-			return false;
-		}
+        global $ADODB_EXTENSION;
 
-		// Empty recordset
+        /*
+		* Insufficient rows to show data
+		*/
+		if ($this->_numOfFields < 2)
+              return;
+
+		/*
+		* Empty recordset
+		*/
 		if (!$this->fields) {
 			return array();
 		}
 
-		// Determine whether the array is associative or 0-based numeric
-		$numIndex = array_keys($this->fields) == range(0, count($this->fields) - 1);
+        $showArrayMethod = 0;
 
-		$results = array();
+        if ($this->_numOfFields == 2)
+            /*
+            * Key is always value of first element
+            * Value is alway value of second element
+            */
+            $showArrayMethod = 1;
 
-		if (!$first2cols && ($cols > 2 || $force_array)) {
-			if ($ADODB_EXTENSION) {
-				if ($numIndex) {
-					while (!$this->EOF) {
-						$results[trim($this->fields[0])] = array_slice($this->fields, 1);
-						adodb_movenext($this);
-					}
-				} else {
-					while (!$this->EOF) {
-					// Fix for array_slice re-numbering numeric associative keys
-						$keys = array_slice(array_keys($this->fields), 1);
-						$sliced_array = array();
+        if ($force_array)
+            $showArrayMethod = 0;
 
-						foreach($keys as $key) {
-							$sliced_array[$key] = $this->fields[$key];
-						}
+        if ($first2cols)
+            $showArrayMethod = 1;
 
-						$results[trim(reset($this->fields))] = $sliced_array;
-						adodb_movenext($this);
-					}
+		$results  = array();
+
+        while (!$this->EOF){
+
+            $myFields = $this->fields;
+			
+			/*
+			* If we have used the recordset method as an API, we don't have
+			* true access to the fetch mode. This only affects the presentation
+			* of data if the showarraymethod is set to 0. So we can test it by
+			* looking at the keys. Instead of trying to identify individual key
+			* values and see if they are numeric or non-numeric, we compare the
+			* md5 of the first set of keys against something we know the value of
+			* i.e the md5 of a numeric set of keys, starting at 0 for the length of
+			* the record set
+			*/
+			if ($showArrayMethod == 0 && $fetchMode==-1)
+			{
+				/*
+				* If the array is numeric, then $testKeys would like like this:
+				* 0=>0,1=>1,2=>2....n=>n,
+				* i.e. the keys and values would be exactly the same
+				*/
+				$testKeys = array_keys($myFields); 
+				
+				$walkKeys = array_fill(0,$this->_numOfFields,0); 
+				array_walk($walkKeys,array($this,'walkGetAssocKeys'));
+				/*
+				* If the array is numeric, then the md5 of $testKeys
+				* must be exactly the same as $walkKeys
+				*/
+				if (md5(serialize($walkKeys)) == md5(serialize($testKeys)))
+					$fetchMode = ADODB_FETCH_NUM;
+				else
+					$fetchMode = ADODB_FETCH_ASSOC;
+				
+			} 
+			 
+			/*
+            * key is value of first element, rest is data,
+            * casing is already handled by the driver
+            */
+            $key = array_shift($myFields);
+
+			switch ($showArrayMethod){
+            case 0:
+
+                if ($fetchMode == ADODB_FETCH_ASSOC)
+				{
+					/*
+					* The driver should have already handled the key
+					* casing, but in case it did not. We will check and force
+					* this in later versions of ADOdb
+					*/
+					if (ADODB_ASSOC_CASE == ADODB_ASSOC_CASE_UPPER)
+						$myFields = array_change_key_case($myFields,CASE_UPPER);
+					
+					elseif (ADODB_ASSOC_CASE == ADODB_ASSOC_CASE_LOWER)
+						$myFields = array_change_key_case($myFields,CASE_LOWER);
+
+					/*
+				    * We have already shifted the key off
+					* the front, so the rest is the value
+					*/
+					$results[$key] = $myFields;
+					
 				}
-			} else {
-				if ($numIndex) {
-					while (!$this->EOF) {
-						$results[trim($this->fields[0])] = array_slice($this->fields, 1);
-						$this->MoveNext();
-					}
-				} else {
-					while (!$this->EOF) {
-					// Fix for array_slice re-numbering numeric associative keys
-						$keys = array_slice(array_keys($this->fields), 1);
-						$sliced_array = array();
+				else
+					/*
+					 * I want the values in a numeric array,
+					 * nicely re-indexed from zero
+					 */
+					$results[$key] = array_values($myFields);
+                break;
 
-						foreach($keys as $key) {
-							$sliced_array[$key] = $this->fields[$key];
-						}
+            case 1:
 
-						$results[trim(reset($this->fields))] = $sliced_array;
-						$this->MoveNext();
-					}
-				}
-			}
-		} else {
-			if ($ADODB_EXTENSION) {
-				// return scalar values
-				if ($numIndex) {
-					while (!$this->EOF) {
-					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$results[trim(($this->fields[0]))] = $this->fields[1];
-						adodb_movenext($this);
-					}
-				} else {
-					while (!$this->EOF) {
-					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$v1 = trim(reset($this->fields));
-						$v2 = ''.next($this->fields);
-						$results[$v1] = $v2;
-						adodb_movenext($this);
-					}
-				}
-			} else {
-				if ($numIndex) {
-					while (!$this->EOF) {
-					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$results[trim(($this->fields[0]))] = $this->fields[1];
-						$this->MoveNext();
-					}
-				} else {
-					while (!$this->EOF) {
-					// some bug in mssql PHP 4.02 -- doesn't handle references properly so we FORCE creating a new string
-						$v1 = trim(reset($this->fields));
-						$v2 = ''.next($this->fields);
-						$results[$v1] = $v2;
-						$this->MoveNext();
-					}
-				}
-			}
-		}
+                /*
+                 * Don't care how long the array is,
+                 * I just want value of second column, and it doesn't
+				 * matter whether the array is associative or numeric
+                 */
+                $results[$key] = array_shift($myFields);
+                break;
+            }
 
-		$ref = $results; # workaround accelerator incompat with PHP 4.4 :(
-		return $ref;
+            if ($ADODB_EXTENSION)
+                /*
+                 * Don't really need this either except for 
+                 * old version compatibility
+                 */
+                adodb_movenext($this);
+            else
+               $this->MoveNext();
+        }        
+        /*
+         * Done
+         */
+        return $results;
+    }
+	
+	/**
+	* Creates a numeric array where the keys and values are exactly the same
+	*
+	* @param	obj		$item	Array item, by reference
+	* @param	int		$key	The key of the item
+    *
+    * @return null
+	*/
+	final private function walkGetAssocKeys(&$item, $key)
+	{
+		$item = $key;
 	}
-
-
+	
 	/**
 	 *
 	 * @param v		is the character timestamp in YYYY-MM-DD hh:mm:ss format
