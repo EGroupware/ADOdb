@@ -157,7 +157,7 @@ class dbObject {
 	* Destroys the object
 	*/
 	function destroy() {
-		unset( $this );
+		//unset( $this );
 	}
 
 	/**
