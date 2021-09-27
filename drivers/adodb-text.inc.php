@@ -204,8 +204,7 @@ class ADODB_text extends ADOConnection {
 			//print "<p>Eval string = $eval </p>";
 			$where_arr = array();
 
-			reset($this->_origarray);
-			while (list($k_arr,$arr) = each($this->_origarray)) {
+			foreach($this->_origarray as $k_arr => $arr) {
 
 				if ($i == 0 && $this->_skiprow1)
 					$where_arr[] = $arr;
@@ -242,8 +241,7 @@ class ADODB_text extends ADOConnection {
 				$col = $colarr[1];
 				$i = 0;
 				$n = '';
-				reset($this->_colnames);
-				while (list($k_n,$n) = each($this->_colnames)) {
+				foreach($this->_colnames as $k_n => $n) {
 
 					if ($col == strtoupper(trim($n))) break;
 					$i += 1;
@@ -255,8 +253,7 @@ class ADODB_text extends ADOConnection {
 					$projtypes = array($this->_types[$i]);
 					$projnames = array($n);
 
-					reset($where_arr);
-					while (list($k_a,$a) = each($where_arr)) {
+					foreach($where_arr as $k_a => $a) {
 						if ($i == 0 && $this->_skiprow1) {
 							$projarray[] = array($n);
 							continue;
@@ -297,8 +294,7 @@ class ADODB_text extends ADOConnection {
 		$at = (integer) $col;
 		if ($at == 0) {
 			$i = 0;
-			reset($projnames);
-			while (list($k_n,$n) = each($projnames)) {
+			foreach($projnames as $k_n => $n) {
 				if (strtoupper(trim($n)) == $col) {
 					$at = $i+1;
 					break;
