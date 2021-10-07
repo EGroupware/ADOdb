@@ -3683,7 +3683,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
     *
     * @return null
 	*/
-	final private function walkGetAssocKeys(&$item, $key)
+	private function walkGetAssocKeys(&$item, $key)
 	{
 		$item = $key;
 	}
