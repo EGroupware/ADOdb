@@ -758,12 +758,18 @@ class ADODB_DataDict {
 			if ($fdefts) {
 				if (substr($this->connection->databaseType,0,5) == 'mysql') {
 					$ftype = 'TIMESTAMP';
+					if ((float)$this->connection->_connectionID->server_info >= 5.6) {
+						$fdefault = $this->connection->sysTimeStamp.' ON UPDATE '.$this->connection->sysTimeStamp;
+					}
 				} else {
 					$fdefault = $this->connection->sysTimeStamp;
 				}
 			} else if ($fdefdate) {
 				if (substr($this->connection->databaseType,0,5) == 'mysql') {
 					$ftype = 'TIMESTAMP';
+					if ((float)$this->connection->_connectionID->server_info >= 5.6) {
+						$fdefault = $this->connection->sysDate;
+					}
 				} else {
 					$fdefault = $this->connection->sysDate;
 				}
