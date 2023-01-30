@@ -162,7 +162,7 @@ class ADODB_postgres64 extends ADOConnection{
 		if (empty($_resultid)) return false;
 
 		return is_object($_resultid) && is_a($_resultid, \PgSql\Result::class) ||   // PHP 8.1+
-			is_resource($this->_resultid) && get_resource_type($this->_resultid) === 'pgsql result';    // PHP < 8.1
+			is_resource($_resultid) && get_resource_type($_resultid) === 'pgsql result';    // PHP < 8.1
 	}
 
 	/**
@@ -174,9 +174,11 @@ class ADODB_postgres64 extends ADOConnection{
 	function _insertid($table,$column)
 	{
 		if (!$this->_is_result($this->_resultid)) return false;
-		$oid = pg_getlastoid($this->_resultid);
-		// to really return the id, we need the table and column-name, else we can only return the oid != id
-		return empty($table) || empty($column) ? $oid : $this->GetOne("SELECT $column FROM $table WHERE oid=".(int)$oid);
+
+		// for INSERT queries we append a ' RETURNING *' to be able to fetch the ID here
+		$row = pg_fetch_row($this->_resultid, null, PGSQL_ASSOC);
+
+		return is_array($row) && !empty($column) && !empty($row[$column]) ? (int)$row[$column] : false;
 	}
 
 	function _affectedrows()
@@ -782,6 +784,11 @@ class ADODB_postgres64 extends ADOConnection{
 	// returns queryID or false
 	function _query($sql,$inputarr=false)
 	{
+		// returning all inserted values, to be able to fetch last-insert-ID later
+		if (strtoupper(substr($sql, 0, 7) === 'INSERT '))
+		{
+			$sql .= ' RETURNING *';
+		}
 		$this->_pnum = 0;
 		$this->_errorMsg = false;
 		if ($inputarr) {
