@@ -152,6 +152,20 @@ class ADODB_postgres64 extends ADOConnection{
 	}
 
 	/**
+	 * Check if given resultid is a valid result resource (PHP < 8.1) or PgSQL\Result object (PHP 8.1+)
+	 *
+	 * @param resource|\PgSql\Result $_resultid
+	 * @return bool
+	 */
+	protected function _is_result($_resultid)
+	{
+		if (empty($_resultid)) return false;
+
+		return is_object($_resultid) && is_a($_resultid, \PgSql\Result::class) ||   // PHP 8.1+
+			is_resource($this->_resultid) && get_resource_type($this->_resultid) === 'pgsql result';    // PHP < 8.1
+	}
+
+	/**
 	 * Warning from http://www.php.net/manual/function.pg-getlastoid.php:
 	 * Using a OID as a unique identifier is not generally wise.
 	 * Unless you are very careful, you might end up with a tuple having
@@ -159,7 +173,7 @@ class ADODB_postgres64 extends ADOConnection{
 	 */
 	function _insertid($table,$column)
 	{
-		if (!is_resource($this->_resultid) || get_resource_type($this->_resultid) !== 'pgsql result') return false;
+		if (!$this->_is_result($this->_resultid)) return false;
 		$oid = pg_getlastoid($this->_resultid);
 		// to really return the id, we need the table and column-name, else we can only return the oid != id
 		return empty($table) || empty($column) ? $oid : $this->GetOne("SELECT $column FROM $table WHERE oid=".(int)$oid);
@@ -167,7 +181,7 @@ class ADODB_postgres64 extends ADOConnection{
 
 	function _affectedrows()
 	{
-		if (!is_resource($this->_resultid) || get_resource_type($this->_resultid) !== 'pgsql result') return false;
+		if (!$this->_is_result($this->_resultid)) return false;
 		return pg_affected_rows($this->_resultid);
 	}
 
@@ -832,7 +846,7 @@ class ADODB_postgres64 extends ADOConnection{
 		}
 		// check if no data returned, then no need to create real recordset
 		if ($rez && pg_num_fields($rez) <= 0) {
-			if (is_resource($this->_resultid) && get_resource_type($this->_resultid) === 'pgsql result') {
+			if ($this->_is_result($this->_resultid)) {
 				pg_free_result($this->_resultid);
 			}
 			$this->_resultid = $rez;
