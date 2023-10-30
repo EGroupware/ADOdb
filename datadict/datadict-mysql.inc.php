@@ -39,16 +39,18 @@ class ADODB2_mysql extends ADODB_DataDict {
 		case 'STRING':
 		case 'CHAR':
 		case 'VARCHAR':
+		case 'VARBINARY':
 		case 'TINYBLOB':
 		case 'TINYTEXT':
 		case 'ENUM':
 		case 'SET':
 			if ($len <= $this->blobSize) return 'C';
+			// fall-through, if size bigger than blobSize
 
 		case 'TEXT':
 		case 'LONGTEXT':
 		case 'MEDIUMTEXT':
-			return 'X';
+			// fall-through to check binary, was return 'X';
 
 		// php_mysql extension always returns 'blob' even if 'text'
 		// so we have to check whether binary...
