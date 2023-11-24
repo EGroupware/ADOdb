@@ -256,16 +256,27 @@ if (!defined('_ADODB_LAYER')) {
 		var $name = '';
 		var $max_length=0;
 		var $type="";
-/*
-		// additional fields by dannym... (danny_milo@yahoo.com)
-		var $not_null = false;
-		// actually, this has already been built-in in the postgres, fbsql AND mysql module? ^-^
-		// so we can as well make not_null standard (leaving it at "false" does not harm anyways)
+		var $scale;
+		var $enums;
+		var $not_null;
+		var $primary_key;
+		var $auto_increment;
+		var $binary;
+		var $unsigned;
+		var $zerofill;
+		var $has_default;
+		var $default_value;
 
-		var $has_default = false; // this one I have done only in mysql and postgres for now ...
-			// others to come (dannym)
-		var $default_value; // default, if any, and supported. Check has_default first.
-*/
+		/*
+				// additional fields by dannym... (danny_milo@yahoo.com)
+				var $not_null = false;
+				// actually, this has already been built-in in the postgres, fbsql AND mysql module? ^-^
+				// so we can as well make not_null standard (leaving it at "false" does not harm anyways)
+		
+				var $has_default = false; // this one I have done only in mysql and postgres for now ...
+					// others to come (dannym)
+				var $default_value; // default, if any, and supported. Check has_default first.
+		*/
 	}
 
 
@@ -3156,6 +3167,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		var $_numOfRows = 0;
 		var $fields = false;
 		var $connection = false;
+		var $sql = '';
 
 		function RowCount() {
 			return 0;
@@ -4534,6 +4546,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		var $insertid = false;
 		var $sql = '';
 		var $compat = false;
+		var $adodbFetchMode;
 
 		/**
 		 * Constructor
