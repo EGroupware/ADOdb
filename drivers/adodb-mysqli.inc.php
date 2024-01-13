@@ -741,7 +741,7 @@ class ADODB_mysqli extends ADOConnection {
 	{
 //		$this->_connectionID = $this->mysqli_resolve_link($this->_connectionID);
 		$this->database = $dbName;
-		$this->databaseName = $dbName; # obsolete, retained for compat with older adodb versions
+		//$this->databaseName = $dbName; # obsolete, retained for compat with older adodb versions
 
 		if ($this->_connectionID) {
 			$result = @mysqli_select_db($this->_connectionID, $dbName);
@@ -956,6 +956,7 @@ class ADORecordSet_mysqli extends ADORecordSet{
 
 	var $databaseType = "mysqli";
 	var $canSeek = true;
+	var $adodbFetchMode = null;
 
 	function __construct($queryID, $mode = false)
 	{
