@@ -345,7 +345,9 @@ class ADODB_DataDict {
 		"SQLNCHAR" => 'C',
 		"SQLNVCHAR" => 'C',
 		"SQLLVARCHAR" => 'X',
-		"SQLBOOL" => 'L'
+		"SQLBOOL" => 'L',
+		## MariaDB 11.7+
+		"VECTOR" => 'V',
 		);
 
 		if (!$this->connection->isConnected()) {
