@@ -3941,6 +3941,7 @@ http://www.stanford.edu/dept/itss/docs/oracle/10g/server.101/b10759/statements_1
 		/** @var bool|array  */
 		var $fields = false;
 		var $connection = false;
+		var $sql = '';
 
 		function RowCount() {
 			return 0;
@@ -5322,7 +5323,7 @@ class ADORecordSet implements IteratorAggregate {
 			$save = $this->fetchMode;
 			$this->fetchMode = $fetchmode;
 		}
-		$row =& $this->FetchRow();
+		$row = $this->FetchRow();
 		if (!is_null($fetchmode)) {
 			$this->fetchMode = $save;
 		}
@@ -5372,7 +5373,6 @@ class ADORecordSet implements IteratorAggregate {
 		var $canSeek = true;
 		var $affectedrows = false;
 		var $insertid = false;
-		var $sql = '';
 		var $compat = false;
 
 		/**
